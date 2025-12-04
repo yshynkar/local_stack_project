@@ -5,7 +5,7 @@ import os
 import boto3
 
 # --- НАСТРОЙКИ ---
-# Внутри Docker мы обращаемся к LocalStack по имени контейнера
+# Внутри Docker обращание к LocalStack по имени контейнера
 AWS_ENDPOINT = "http://localstack:4566"
 AWS_REGION = "us-east-1"
 AWS_KEY = "test"
@@ -38,7 +38,7 @@ def upload_files_to_s3(**context):
     """
     s3 = get_s3_client()
 
-    # 1. Создаем бакет
+    # 1. Создал бакет
     try:
         s3.create_bucket(Bucket=BUCKET_NAME)
         print(f"Bucket {BUCKET_NAME} created.")
@@ -47,7 +47,7 @@ def upload_files_to_s3(**context):
         print(f"Bucket info: {e}")
 
     # 2. Путь к данным внутри Docker контейнера
-    # (Мы примонтировали локальную папку data в /opt/airflow/data)
+    # (примонтировал локальную папку data в /opt/airflow/data)
     folder_path = "/opt/airflow/data/monthly"
 
     if not os.path.exists(folder_path):
