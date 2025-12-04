@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # --- AWS Emulator ---
+  localstack:
+    image: localstack/localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3,lambda,dynamodb,sns
+      - DEFAULT_REGION=us-east-1
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+
+  # --- Database ---
+  postgres:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow
+    ports:
+      - "5439:5432"
+
+  # --- Init (Создание таблиц) ---
+  airflow-init:
+    build: .  # <-- ВАЖНО: Используем наш Dockerfile везде
+    command: >
+      bash -c "airflow db init &&
+      airflow users create --username airflow --password airflow --firstname Admin --lastname User --role Admin --email admin@example.com"
+    env_file:
+      - .env
+    environment:
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW_UID=501
+    depends_on:
+      - postgres
+
+  # --- Webserver ---
+  airflow-webserver:
+    build: .  # <-- Собираем образ с Java и PySpark
+    command: webserver
+    restart: always
+    ports:
+      - "7777:8080"
+    env_file:
+      - .env
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      # Сетевые настройки для Mac:
+      - AIRFLOW__WEBSERVER__WEB_SERVER_HOST=0.0.0.0
+      - AIRFLOW__WEBSERVER__WEB_SERVER_PORT=8080
+      - AWS_ENDPOINT_URL=http://localstack:4566
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./data:/opt/airflow/data
+      - ./src:/opt/airflow/src
+    depends_on:
+      - airflow-init
+      - localstack
+
+  # --- Scheduler ---
+  airflow-scheduler:
+    build: .  # <-- Scheduler ТОЖЕ должен быть собран из Dockerfile, иначе Spark не запустится
+    command: scheduler
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AWS_ENDPOINT_URL=http://localstack:4566
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./data:/opt/airflow/data
+      - ./src:/opt/airflow/src
+    depends_on:
+      - airflow-init
+      - localstack
