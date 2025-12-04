@@ -32,8 +32,7 @@ def process_data_with_spark(**context):
     s3 = boto3.client('s3', endpoint_url=AWS_ENDPOINT,
                       aws_access_key_id=AWS_KEY, aws_secret_access_key=AWS_SECRET)
 
-    # Имя файла, который мы загрузили на прошлом этапе
-    # (Убедись, что этот файл есть в S3! Если нет, запусти прошлый DAG еще раз)
+    
     target_file = "bikes_2020-05.csv"
     local_input = f"/tmp/{target_file}"
 
@@ -51,34 +50,34 @@ def process_data_with_spark(**context):
         .master("local[*]") \
         .getOrCreate()
 
-    # Читаем CSV (с заголовками)
+    # Чтение CSV (с заголовками)
     df = spark.read.option("header", "True").csv(local_input)
 
     print(f"Rows count: {df.count()}")
 
     # 3.1 Метрика: Отправления (Departure station name)
-    # Группируем по станции и считаем количество
+    # Группировка по станции и считаем количество
     dep_counts = df.groupBy("Departure station name").count().withColumnRenamed("count", "trips_started")
 
     # 3.2 Метрика: Возвраты (Return station name)
     ret_counts = df.groupBy("Return station name").count().withColumnRenamed("count", "trips_ended")
 
-    # Сохраняем во временную папку
-    # Spark сохраняет как папку с part-файлами, поэтому мы сохраним в /tmp/deps и /tmp/rets
+    # Сохранение во временную папку
+    # Spark сохраняет как папку с part-файлами, поэтому сохраняю в /tmp/deps и /tmp/rets
     out_dep = "/tmp/metrics_departure"
     out_ret = "/tmp/metrics_return"
 
-    # Чистим, если папки уже есть
+    # Чистка, если папки уже есть
     if os.path.exists(out_dep): shutil.rmtree(out_dep)
     if os.path.exists(out_ret): shutil.rmtree(out_ret)
 
-    # Coalesce(1) собирает всё в 1 файл (удобно для тестов)
+    # Coalesce(1) собирает всё в 1 файл
     dep_counts.coalesce(1).write.header(True).csv(out_dep)
     ret_counts.coalesce(1).write.header(True).csv(out_ret)
 
     # 4. Загрузка результатов обратно в S3
     def upload_spark_result(local_folder, s3_name):
-        # Spark создает файлы вида part-00000-....csv, ищем его
+        # Spark создает файлы вида part-00000-....csv
         for f in os.listdir(local_folder):
             if f.endswith(".csv"):
                 full_path = os.path.join(local_folder, f)
