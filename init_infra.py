@@ -13,15 +13,15 @@ def init_infrastructure():
     """
     Initializes AWS resources: S3 Bucket, DynamoDB Table, SNS Topic.
     """
-    print("🚀 Starting Infrastructure Initialization...")
+    print("Starting Infrastructure Initialization...")
 
     # 1. S3
     s3 = boto3.client('s3', **AWS_CONFIG)
     try:
         s3.create_bucket(Bucket="city-bikes")
-        print("✅ S3 Bucket 'city-bikes' created.")
+        print("S3 Bucket 'city-bikes' created.")
     except Exception:
-        print("⚠️ S3 Bucket already exists.")
+        print("S3 Bucket already exists.")
 
     # 2. DynamoDB
     dynamodb = boto3.resource('dynamodb', **AWS_CONFIG)
@@ -38,19 +38,19 @@ def init_infrastructure():
             ],
             ProvisionedThroughput={'ReadCapacityUnits': 5, 'WriteCapacityUnits': 5}
         )
-        print("✅ DynamoDB Table 'BikeMetrics' creating...")
+        print("DynamoDB Table 'BikeMetrics' creating...")
     except Exception as e:
-        print(f"⚠️ DynamoDB Table issue: {e}")
+        print(f"DynamoDB Table issue: {e}")
 
     # 3. SNS Topic
     sns = boto3.client('sns', **AWS_CONFIG)
     topic = sns.create_topic(Name='BikeUploadsTopic')
     topic_arn = topic['TopicArn']
-    print(f"✅ SNS Topic created: {topic_arn}")
+    print(f"SNS Topic created: {topic_arn}")
 
     # 4. Настройка уведомлений S3 -> SNS (Имитация)
     # В реальном AWS здесь настраивается bucket_notification
-    print("✅ S3 Event Notifications configured.")
+    print("S3 Event Notifications configured.")
 
 if __name__ == "__main__":
     init_infrastructure()
